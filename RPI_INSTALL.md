@@ -5,7 +5,7 @@
 - Raspberry Pi OS 64-bit
 - Docker Engine with Docker Compose v2
 - PLC connected through USB/serial
-- External Authentik/OIDC provider
+- Local Authentik/OIDC and PostgreSQL containers (included)
 - Public `mvd/web` and `mvd/backend` GHCR packages
 
 ## 1. Install Docker
@@ -101,7 +101,7 @@ SYSTEM_HOSTNAME=mwd-machine
 WEB_PORT=8080
 ```
 
-Configure Authentik using values for the installed machine:
+Configure the included Authentik instance using values for the installed machine. Also replace every `AUTHENTIK_*`, `MWD_SIM_*`, and session-secret placeholder created from `.env.common.example`:
 
 ```dotenv
 AUTHENTIK_ISSUER_URL=https://auth.your-domain.com/application/o/microwave-drying-machine/
@@ -119,8 +119,7 @@ Generate a session secret:
 openssl rand -hex 32
 ```
 
-Authentik must contain the exact same redirect URI. Configure the application
-groups `viewer`, `operator`, and `admin`.
+The included bootstrap job creates the provider, signing key, initial users, and the application groups `viewer`, `operator`, and `admin`.
 
 Save Nano with `Ctrl+O`, Enter, and `Ctrl+X`.
 

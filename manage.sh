@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 bundle="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 common_env="$bundle/.env.common"
-base=(docker compose --env-file "$common_env" -f "$bundle/compose.yml")
+base=(docker compose --env-file "$common_env" -f "$bundle/compose.yml" -f "$bundle/compose.authentik.yml")
 command="${1:-status}"
 
 command -v docker >/dev/null || { printf 'Docker with Compose v2 is required.\n' >&2; exit 1; }

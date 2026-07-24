@@ -114,11 +114,11 @@ chmod +x manage.sh
 ./manage.sh status
 ```
 
-The production authentication provider is external. Configure its client with the exact callback
-and logout URLs from `.env.common`, configure application groups `viewer`, `operator`, and `admin`, and
-ensure `AUTHENTIK_ISSUER_URL` is reachable from both browsers and the backend container. HTTPS is
-required when `SESSION_COOKIE_SECURE=true`; TLS termination must be supplied by a trusted reverse
-proxy because the included web image does not terminate TLS.
+Authentik and PostgreSQL are included and start in both modes. The bootstrap job creates the OIDC
+provider, signing key, application groups `viewer`, `operator`, and `admin`, and initial users.
+Set every Authentik secret, initial-user password, issuer URL, callback URL, and logout URL in
+`.env.common`. For plain HTTP on an isolated LAN, use `SESSION_COOKIE_SECURE=false`; production
+HTTPS still requires a trusted reverse proxy.
 
 ## Update and operate
 

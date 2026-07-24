@@ -1,0 +1,82 @@
+services:
+  postgresql:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${AUTHENTIK_POSTGRESQL__NAME:-authentik}
+      POSTGRES_USER: ${AUTHENTIK_POSTGRESQL__USER:-authentik}
+      POSTGRES_PASSWORD: ${AUTHENTIK_POSTGRESQL__PASSWORD:?set AUTHENTIK_POSTGRESQL__PASSWORD}
+    volumes:
+      - authentik-postgresql:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_VERSION:-2025.12.4}
+    command: server
+    environment: &authentik-environment
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?set AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__NAME: ${AUTHENTIK_POSTGRESQL__NAME:-authentik}
+      AUTHENTIK_POSTGRESQL__USER: ${AUTHENTIK_POSTGRESQL__USER:-authentik}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_POSTGRESQL__PASSWORD:?set AUTHENTIK_POSTGRESQL__PASSWORD}
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:?set AUTHENTIK_BOOTSTRAP_PASSWORD}
+      AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:?set AUTHENTIK_BOOTSTRAP_TOKEN}
+      AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL:-sim-admin@example.invalid}
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    ports:
+      - "${AUTHENTIK_PORT:-9000}:9000"
+    healthcheck:
+      test: [CMD, ak, healthcheck]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_VERSION:-2025.12.4}
+    command: worker
+    environment: *authentik-environment
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      authentik-server:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, ak, healthcheck]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  authentik-bootstrap:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_VERSION:-2025.12.4}
+    command: [shell, -c, "exec(open('/bootstrap/bootstrap.py', encoding='utf-8').read())"]
+    environment:
+      <<: *authentik-environment
+      MWD_AUTHENTIK_CLIENT_ID: ${AUTHENTIK_CLIENT_ID:-microwave-drying-machine}
+      MWD_AUTHENTIK_CLIENT_SECRET: ${AUTHENTIK_CLIENT_SECRET:?set AUTHENTIK_CLIENT_SECRET}
+      MWD_AUTHENTIK_REDIRECT_URI: ${AUTHENTIK_REDIRECT_URI:?set AUTHENTIK_REDIRECT_URI}
+      MWD_AUTHENTIK_POST_LOGOUT_REDIRECT_URI: ${AUTHENTIK_POST_LOGOUT_REDIRECT_URI:?set AUTHENTIK_POST_LOGOUT_REDIRECT_URI}
+      MWD_SIM_ADMIN_PASSWORD: ${MWD_SIM_ADMIN_PASSWORD:?set MWD_SIM_ADMIN_PASSWORD}
+      MWD_SIM_OPERATOR_PASSWORD: ${MWD_SIM_OPERATOR_PASSWORD:?set MWD_SIM_OPERATOR_PASSWORD}
+      MWD_SIM_VIEWER_PASSWORD: ${MWD_SIM_VIEWER_PASSWORD:?set MWD_SIM_VIEWER_PASSWORD}
+      MWD_SIM_DISABLED_PASSWORD: ${MWD_SIM_DISABLED_PASSWORD:?set MWD_SIM_DISABLED_PASSWORD}
+    volumes:
+      - ./authentik/bootstrap.py:/bootstrap/bootstrap.py:ro
+    depends_on:
+      authentik-server:
+        condition: service_healthy
+      authentik-worker:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  authentik-postgresql:

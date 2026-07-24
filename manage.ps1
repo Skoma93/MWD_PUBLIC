@@ -8,6 +8,7 @@ $ErrorActionPreference = 'Stop'
 $bundle = Split-Path -Parent $MyInvocation.MyCommand.Path
 $commonEnv = Join-Path $bundle '.env.common'
 $base = Join-Path $bundle 'compose.yml'
+$authentik = Join-Path $bundle 'compose.authentik.yml'
 $simulation = Join-Path $bundle 'compose.simulation.yml'
 $hardware = Join-Path $bundle 'compose.hardware.yml'
 
@@ -20,7 +21,7 @@ if (Select-String -LiteralPath $commonEnv -Pattern 'replace-with|example.invalid
     throw "Replace every placeholder in $commonEnv before deployment."
 }
 
-$common = @('--env-file', $commonEnv, '-f', $base)
+$common = @('--env-file', $commonEnv, '-f', $base, '-f', $authentik)
 switch ($Command) {
     'pull' { & docker compose @common pull }
     'start-simulation' { & docker compose @common --env-file (Join-Path $bundle '.env.simulation') -f $simulation pull; if (-not $LASTEXITCODE) { & docker compose @common --env-file (Join-Path $bundle '.env.simulation') -f $simulation up -d } }
