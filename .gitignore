@@ -1,0 +1,6 @@
+.env.common
+.env.simulation
+.env.hardware
+*.tar
+*.log
+backups/

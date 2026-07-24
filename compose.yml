@@ -1,0 +1,98 @@
+name: microwave-drying-machine
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  web:
+    image: ${MWD_IMAGE_REGISTRY:?Set MWD_IMAGE_REGISTRY}/web:${MWD_IMAGE_TAG:?Set MWD_IMAGE_TAG}
+    hostname: ${SYSTEM_HOSTNAME:-mwd-machine}
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8080/]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    logging: *logging
+
+  backend:
+    image: ${MWD_IMAGE_REGISTRY:?Set MWD_IMAGE_REGISTRY}/backend:${MWD_IMAGE_TAG:?Set MWD_IMAGE_TAG}
+    environment:
+      CONTRACTS_DIR: /app/contracts
+      PLC_MODE: ${PLC_MODE:-simulator}
+      PLC_HOST: ${PLC_HOST:-simulator}
+      PLC_PORT: ${PLC_PORT:-1502}
+      PLC_SERIAL_DEVICE: ${PLC_SERIAL_DEVICE:-/dev/ttyUSB0}
+      PLC_SERIAL_BAUDRATE: ${PLC_SERIAL_BAUDRATE:-19200}
+      PLC_SERIAL_PARITY: ${PLC_SERIAL_PARITY:-N}
+      PLC_SERIAL_DATA_BITS: ${PLC_SERIAL_DATA_BITS:-8}
+      PLC_SERIAL_STOP_BITS: ${PLC_SERIAL_STOP_BITS:-1}
+      PLC_UNIT_ID: ${PLC_UNIT_ID:-1}
+      PLC_CONNECT_TIMEOUT_MS: ${PLC_CONNECT_TIMEOUT_MS:-1000}
+      PLC_RESPONSE_TIMEOUT_MS: ${PLC_RESPONSE_TIMEOUT_MS:-1000}
+      PLC_POLL_INTERVAL_MS: ${PLC_POLL_INTERVAL_MS:-1000}
+      APP_ENV: production
+      AUTH_MODE: oidc
+      ALLOW_DEVELOPMENT_AUTH: "false"
+      WS_AUTH_MODE: session-cookie
+      AUTHENTIK_ISSUER_URL: ${AUTHENTIK_ISSUER_URL:?Set AUTHENTIK_ISSUER_URL}
+      AUTHENTIK_CLIENT_ID: ${AUTHENTIK_CLIENT_ID:?Set AUTHENTIK_CLIENT_ID}
+      AUTHENTIK_CLIENT_SECRET: ${AUTHENTIK_CLIENT_SECRET:?Set AUTHENTIK_CLIENT_SECRET}
+      AUTHENTIK_REDIRECT_URI: ${AUTHENTIK_REDIRECT_URI:?Set AUTHENTIK_REDIRECT_URI}
+      AUTHENTIK_POST_LOGOUT_REDIRECT_URI: ${AUTHENTIK_POST_LOGOUT_REDIRECT_URI:?Set AUTHENTIK_POST_LOGOUT_REDIRECT_URI}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-28800}
+      RECIPE_STORE_DIR: /var/lib/microwave-drying-machine/recipes
+      PREFERENCE_STORE_DIR: /var/lib/microwave-drying-machine/preferences
+      CAMERA_STREAM_URL: ${CAMERA_STREAM_URL:-}
+      CAMERA_CONNECT_TIMEOUT_MS: ${CAMERA_CONNECT_TIMEOUT_MS:-2000}
+      CAMERA_READ_TIMEOUT_MS: ${CAMERA_READ_TIMEOUT_MS:-10000}
+      CAMERA_MAX_CONNECTIONS: ${CAMERA_MAX_CONNECTIONS:-4}
+    depends_on:
+      simulator:
+        condition: service_healthy
+        required: false
+    volumes:
+      - backend-data:/var/lib/microwave-drying-machine
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    logging: *logging
+
+  simulator:
+    image: ${MWD_IMAGE_REGISTRY:?Set MWD_IMAGE_REGISTRY}/simulator:${MWD_IMAGE_TAG:?Set MWD_IMAGE_TAG}
+    profiles: [simulation]
+    environment:
+      CONTRACTS_DIR: /app/contracts
+    command: [plc-simulator, --host, 0.0.0.0, --port, "1502", --unit-id, "${PLC_UNIT_ID:-1}", --process-scenario, "${SIMULATOR_PROCESS_SCENARIO:-normal-cycle}"]
+    expose:
+      - "1502"
+      - "8081"
+    volumes:
+      - simulator-data:/var/lib/microwave-drying-machine-simulator
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, python, -c, "import socket,urllib.request; s=socket.create_connection(('127.0.0.1',1502),2); s.close(); urllib.request.urlopen('http://127.0.0.1:8081/camera/status',timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging: *logging
+
+volumes:
+  backend-data:
+  simulator-data:

@@ -1,0 +1,7 @@
+services:
+  backend:
+    environment:
+      PLC_MODE: serial
+      PLC_SERIAL_DEVICE: ${PLC_SERIAL_DEVICE:?Set PLC_SERIAL_DEVICE to a stable Linux device path}
+    devices:
+      - "${PLC_SERIAL_DEVICE}:${PLC_SERIAL_DEVICE}"
