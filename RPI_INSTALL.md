@@ -136,6 +136,7 @@ Set the serial device to the path found earlier:
 ```dotenv
 PLC_MODE=serial
 PLC_SERIAL_DEVICE=/dev/serial/by-id/usb-YOUR-ADAPTER
+PLC_SERIAL_GID=20
 PLC_SERIAL_BAUDRATE=19200
 PLC_SERIAL_PARITY=N
 PLC_SERIAL_DATA_BITS=8
@@ -144,6 +145,14 @@ CAMERA_STREAM_URL=
 ```
 
 The serial parameters must match the PLC.
+
+Determine the group ID that owns the selected serial device:
+
+```sh
+stat -Lc '%g' /dev/serial/by-id/usb-YOUR-ADAPTER
+```
+
+Set `PLC_SERIAL_GID` to the printed number. It is commonly `20` for the `dialout` group on Raspberry Pi OS.
 
 ## 7. Install and start hardware mode
 

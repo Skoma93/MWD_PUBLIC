@@ -3,5 +3,7 @@ services:
     environment:
       PLC_MODE: serial
       PLC_SERIAL_DEVICE: ${PLC_SERIAL_DEVICE:?Set PLC_SERIAL_DEVICE to a stable Linux device path}
+    group_add:
+      - "${PLC_SERIAL_GID:?Set PLC_SERIAL_GID to the host group ID that owns the serial device}"
     devices:
       - "${PLC_SERIAL_DEVICE}:${PLC_SERIAL_DEVICE}"
